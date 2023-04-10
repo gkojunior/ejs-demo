@@ -1,27 +1,91 @@
+const { response } = require('express')
 const Task = require('../models/Task')
 
 const addTask = (req, res) => {
-	res.send('in addTask')
+	res.render('pages/addTask')
 }
 
 const createTask = async (req, res) => {
-	res.send('in createTask')
+	try {
+		if (req.body.complete) {
+			req.body.completed = true
+		}
+		await Task.create(req.body)
+		req.session.pendingMessage = 'The task was created.'
+		res.redirect('/tasks')
+	} catch (err) {
+		if (err.name === 'ValidationError') {
+			res.locals.message = Object.values(err.errors)
+				.map((item) => item.message)
+				.join(', ')
+		} else {
+			res.locals.message = 'Something went wrong.'
+		}
+		res.render('pages/addTask')
+	}
 }
 
 const deleteTask = async (req, res) => {
-	res.send('in deleteTask')
+	try {
+		const task = await Task.findByIdAndDelete(req.params.id)
+		res.render({ task })
+		if (response.status === 200) {
+			req.session.pendingMessage = 'The task was deleted.'
+		} else {
+			res.redirect('/tasks')
+		}
+	} catch (err) {
+		req.session.pendingMessage = 'Something went wrong.'
+	}
 }
 
 const editTask = async (req, res) => {
-	res.send('in editTask')
+	try {
+		const task = await Task.findById(req.params.id)
+		res.render('pages/editTask', { task })
+	} catch (err) {
+		req.session.pendingMessage = 'Something went wrong.'
+		res.redirect('/tasks')
+	}
 }
 
 const updateTask = async (req, res) => {
-	res.send('in updateTask')
+	let task = false
+	try {
+		if (req.body.complete) {
+			req.body.completed = true
+		}
+		task = await Task.findById(req.params.id)
+		await Task.findByIdAndUpdate(req.params.id, req.body, {
+			runValidators: true,
+		})
+		req.session.pendingMessage = 'The task was updated.'
+		res.redirect('/tasks')
+	} catch (err) {
+		if (err.name === 'ValidationError') {
+			res.locals.message = Object.values(err.errors)
+				.map((item) => item.message)
+				.join(', ')
+		} else {
+			res.locals.message = 'Something went wrong.'
+		}
+		if (task) {
+			res.render('pages/editTask', { task })
+		} else {
+			req.session.pendingMessage = 'Something went wrong.'
+			res.redirect('/tasks')
+		}
+	}
 }
 
 const getTasks = async (req, res) => {
-	res.send('in getTasks')
+	try {
+		const tasks = await Task.find()
+		res.render('pages/tasks', { tasks })
+	} catch (err) {
+		res.locals.message = 'Something went wrong.'
+		res.render('pages/tasks', { tasks: [] })
+	}
 }
 
 module.exports = {
